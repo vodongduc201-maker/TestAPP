@@ -78,7 +78,7 @@ if df_master is not None:
         if sel_ht not in UU_TIEN_LIST and not df_history.empty:
             da_di_thang = df_history[(df_history['NGAY_DT'].dt.month == now.month) & (df_history['SIEU THI'] == sel_st)]
             if not da_di_thang.empty:
-                st.warning(f"⚠️ Điểm này đi {len(da_di_thang['NGAY'].unique())} lần trong tháng rồi. Đi mấy điểm lấy đơn hàng đi mấy ông bà nội!")
+                st.error(f"⚠️ Điểm này đi {len(da_di_thang['NGAY'].unique())} lần trong tháng rồi. Đi mấy điểm lấy đơn hàng đi mấy ông bà nội!")
 
         # Logic sản phẩm theo nhóm hệ thống
         ht_check = sel_ht.upper().strip()
