@@ -13,7 +13,7 @@ now = datetime.now(tz)
 today_str = now.strftime("%d/%m/%Y")
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# Danh sách 8 hệ thống ưu tiên
+# Danh sách 8 hệ thống ưu tiên cần phủ điểm
 UU_TIEN_LIST = ['CM', 'SF', 'CF', 'MM', 'GO!', 'FL', 'SM', 'XTRA']
 
 # --- 3. ĐỌC DANH MỤC TỪ GITHUB (4 CỘT) ---
@@ -21,7 +21,7 @@ UU_TIEN_LIST = ['CM', 'SF', 'CF', 'MM', 'GO!', 'FL', 'SM', 'XTRA']
 def load_master():
     try:
         df = pd.read_excel("data nhan vien.xlsx", header=None)
-        df = df.iloc[:, :4] # Lấy đúng 4 cột: NHAN VIEN, HE THONG, PHUONG, SIEU THI
+        df = df.iloc[:, :4] 
         df.columns = ['NHAN VIEN', 'HE THONG', 'PHUONG', 'SIEU THI']
         return df
     except Exception as e:
@@ -34,25 +34,22 @@ df_master = load_master()
 st.title("🥤 Test App: Báo Cáo & Bộ Đếm MT")
 
 if df_master is not None:
-    # --- BỘ LỌC CHỌN NHÂN VIÊN ---
+    # --- CHỌN NHÂN VIÊN ---
     list_nv = ["Chọn nhân viên..."] + sorted(df_master['NHAN VIEN'].dropna().unique().tolist())
     sel_nv = st.selectbox("👤 1. Nhân viên", options=list_nv)
 
     if sel_nv == "Chọn nhân viên...":
-        st.info("Vui lòng chọn tên để xem tiến độ tháng và nhập báo cáo.")
+        st.info("Vui lòng chọn tên để xem tiến độ và nhập báo cáo.")
     else:
-        # --- 4. BỘ ĐẾM TIẾN ĐỘ THÁNG (HIỆN NGAY SAU KHI CHỌN TÊN) ---
+        # --- 4. BỘ ĐẾM TIẾN ĐỘ THÁNG ---
         try:
             df_history = conn.read(worksheet="Data_Bao_Cao_MT", ttl=0)
-            
-            # Lấy mục tiêu ưu tiên của NV
             df_target = df_master[(df_master['NHAN VIEN'] == sel_nv) & (df_master['HE THONG'].isin(UU_TIEN_LIST))]
             list_target = df_target['SIEU THI'].unique().tolist()
             tong_diem_ut = len(list_target)
 
             if not df_history.empty:
                 df_history['NGAY_DT'] = pd.to_datetime(df_history['NGAY'], format='%d/%m/%Y', errors='coerce')
-                # Lọc điểm đã đi trong tháng này
                 df_visited = df_history[
                     (df_history['NGAY_DT'].dt.month == now.month) & 
                     (df_history['NGAY_DT'].dt.year == now.year) & 
@@ -66,38 +63,18 @@ if df_master is not None:
             so_con_lai = len([s for s in list_target if s not in list_visited])
             phan_tram = int((len(list_visited) / tong_diem_ut) * 100) if tong_diem_ut > 0 else 0
 
-            # Hiển thị Dashboard Tiến độ
-            st.markdown(f"### 📊 Tiến độ Hệ thống Ưu tiên (T{now.month})")
+            st.markdown(f"### 📊 Tiến độ Ưu tiên (Tháng {now.month})")
             st.progress(phan_tram / 100)
             c1, c2, c3 = st.columns(3)
             c1.metric("Mục tiêu", f"{tong_diem_ut} CH")
             c2.metric("Đã viếng", f"{len(list_visited)} CH")
             c3.metric("Còn lại", f"{so_con_lai} CH", delta=f"-{so_con_lai}", delta_color="inverse")
-            
-            if so_con_lai > 0:
-                with st.expander("📍 Danh sách cửa hàng ưu tiên chưa ghé"):
-                    con_lai_names = [s for s in list_target if s not in list_visited]
-                    for i, name in enumerate(con_lai_names, 1):
-                        ht_type = df_target[df_target['SIEU THI'] == name]['HE THONG'].values[0]
-                        st.write(f"{i}. **{ht_type}** - {name}")
-            else:
-                st.success("🎉 Bạn đã hoàn thành 100% mục tiêu ưu tiên tháng này!")
         except:
-            st.caption("Đang tính toán tiến độ...")
+            st.caption("Đang tải dữ liệu...")
 
         st.divider()
 
-        # --- 5. HIỂN THỊ CÁC ĐIỂM ĐÃ VIẾNG THĂM HÔM NAY ---
-        df_today = df_history[(df_history['NHAN VIEN'] == sel_nv) & (df_history['NGAY'] == today_str)]
-        if not df_today.empty:
-            with st.expander(f"✅ Các điểm đã báo cáo hôm nay ({today_str})", expanded=False):
-                summary_points = df_today[['GIO', 'HE THONG', 'SIEU THI']].drop_duplicates(subset=['SIEU THI'])
-                summary_points = summary_points.sort_values(by='GIO', ascending=False)
-                st.table(summary_points)
-        else:
-            st.caption("✨ Bạn chưa có báo cáo nào trong ngày hôm nay.")
-
-        # --- 6. CHỌN TUYẾN ĐI ---
+        # --- 5. CHỌN TUYẾN ĐI & KIỂM TRA NHẮC LẠI ---
         df_f1 = df_master[df_master['NHAN VIEN'] == sel_nv]
         st.subheader("🏢 Chọn tuyến đi")
         col_ht, col_st = st.columns(2)
@@ -111,15 +88,31 @@ if df_master is not None:
             list_st = sorted(df_f2['SIEU THI'].dropna().unique())
             sel_st = st.selectbox("3. Siêu thị", options=list_st)
 
-        # --- 7. FORM NHẬP BÁO CÁO (FACING & TỒN KHO) ---
+        # Nhắc nhở nếu điểm ngoài ưu tiên đã đi trong tháng
+        if sel_ht not in UU_TIEN_LIST and not df_history.empty:
+            da_di_thang = df_history[
+                (df_history['NGAY_DT'].dt.month == now.month) & 
+                (df_history['SIEU THI'] == sel_st)
+            ]
+            if not da_di_thang.empty:
+                st.warning(f"⚠️ Điểm này đã viếng thăm {len(da_di_thang['NGAY'].unique())} lần trong tháng. Hãy ưu tiên các điểm lớn!")
+
+        # --- 6. FORM NHẬP BÁO CÁO (CHIA NHÓM HÀNG RIÊNG) ---
         st.divider()
         st.subheader(f"📝 Nhập số liệu: {sel_st}")
         
-        # Phân loại sản phẩm theo hệ thống (Giống App chính)
+        # LOGIC NHÓM HÀNG RIÊNG NHƯ APP CHÍNH
         ht_check = sel_ht.upper().strip()
-        if ht_check in ["SH", "BHX"]: list_sp = ["Sa Xi Lon"]
-        elif ht_check == "GS25": list_sp = ["Sa Xi Lon", "Sa Xi Zero Lon", "Xi Pet 390"]
-        else: list_sp = ["Sa Xi Lon", "Sa Xi Zero Lon", "Xi Pet 390", "Xi Pet 1.5L", "Soda Kem Lon", "Suoi 500mL", "Soda Lon"]
+        if ht_check in ["SH", "BHX"]: 
+            list_sp = ["Sa Xi Lon"]
+        elif ht_check == "GS25": 
+            list_sp = ["Sa Xi Lon", "Sa Xi Zero Lon", "Xi Pet 390"]
+        elif ht_check in ["EMART", "CS", "CM", "CF", "FL", "XTRA"]: 
+            list_sp = ["Sa Xi Lon", "Sa Xi Zero Lon", "Xi Pet 390", "Xi Pet 1.5L"]
+        elif ht_check in ["GO!", "GO", "BIGC", "MIO"]: 
+            list_sp = ["Sa Xi Lon", "Sa Xi Zero Lon", "Xi Pet 390", "Xi Pet 1.5L", "Soda Kem Lon"]
+        else: 
+            list_sp = ["Sa Xi Lon", "Sa Xi Zero Lon", "Xi Pet 390", "Xi Pet 1.5L", "Soda Kem Lon", "Suoi 500mL", "Soda Lon"]
         
         data_inputs = {}
         with st.form("form_bao_cao", clear_on_submit=True):
@@ -137,9 +130,7 @@ if df_master is not None:
             ghi_chu = st.text_area("💬 Ghi chú")
 
             if st.form_submit_button("🚀 Gửi báo cáo"):
-                # Lấy tên phường tự động
                 ten_phuong = df_f2[df_f2['SIEU THI'] == sel_st]['PHUONG'].values[0]
-                
                 rows_to_add = []
                 for sp, values in data_inputs.items():
                     if values['fc'] > 0 or values['tk'] > 0:
@@ -155,7 +146,5 @@ if df_master is not None:
                     df_new = pd.DataFrame(rows_to_add)
                     df_final = pd.concat([df_new, df_history], ignore_index=True)
                     conn.update(worksheet="Data_Bao_Cao_MT", data=df_final)
-                    st.success(f"✅ Đã gửi báo cáo cho {sel_st}!")
+                    st.success("✅ Gửi thành công!")
                     st.rerun()
-                else:
-                    st.warning("Vui lòng nhập ít nhất một số liệu Facing hoặc Tồn kho.")
