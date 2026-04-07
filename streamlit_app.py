@@ -14,7 +14,7 @@ today_str = now.strftime("%d/%m/%Y")
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # Danh sách 8 hệ thống ưu tiên
-UU_TIEN_LIST = ['CM', 'SF', 'CF', 'MM', 'GO!', 'FL', 'SM', 'XTRA']
+UU_TIEN_LIST = ['CM', 'SF', 'CF', 'MM', 'GO!', 'SM', 'emart']
 
 # --- 3. ĐỌC DANH MỤC TỪ GITHUB (4 CỘT) ---
 @st.cache_data(ttl=60)
