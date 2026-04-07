@@ -18,7 +18,7 @@ UU_TIEN_LIST = ['CM', 'SF', 'CF', 'MM', 'GO!', 'FL', 'SM', 'XTRA']
 
 # Đọc file Master (data nhan vien)
 try:
-    df_master = conn.read(worksheet="data nhan vien", ttl=0)
+    df_master = conn.read(worksheet="Data_Bao_Cao_MT", ttl=0)
 except Exception as e:
     st.error("Không tìm thấy worksheet 'data nhan vien'. Vui lòng kiểm tra lại tên sheet!")
     st.stop()
