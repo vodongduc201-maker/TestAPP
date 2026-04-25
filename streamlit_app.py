@@ -37,7 +37,7 @@ def safe_append_to_sheets(rows_list):
 
 UU_TIEN_LIST = ['CM', 'SF', 'CF', 'MM', 'GO!', 'emart', 'CTY', 'SM', 'XTRA']
 
-@st.cache_data(ttl=90)
+@st.cache_data(ttl=0)
 def load_master():
     try:
         df = pd.read_excel("data nhan vien.xlsx", header=None)
