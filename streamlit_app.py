@@ -37,7 +37,7 @@ def safe_append_to_sheets(rows_list):
 
 UU_TIEN_LIST = ['CM', 'SF', 'CF', 'MM', 'GO!', 'emart', 'CTY', 'SM', 'XTRA']
 
-@st.cache_data(ttl=0)
+@st.cache_data(ttl=90)
 def load_master():
     try:
         df = pd.read_excel("data nhan vien.xlsx", header=None)
@@ -60,19 +60,12 @@ if df_master is not None:
 
     if sel_nv != "Chọn nhân viên...":
         try:
+            # Đọc lịch sử để kiểm tra chặn và nhắc lịch
             df_history = conn.read(worksheet="Data_Bao_Cao_MT", ttl=0)
             if not df_history.empty:
                 df_history['NGAY_DT'] = pd.to_datetime(df_history['NGAY'], format='%d/%m/%Y', errors='coerce')
         except:
             df_history = pd.DataFrame()
-
-        # Hiển thị tóm tắt hôm nay
-        if not df_history.empty:
-            df_today = df_history[(df_history['NHAN VIEN'] == sel_nv) & (df_history['NGAY'] == today_str)]
-            if not df_today.empty:
-                with st.expander(f"✅ Đã báo cáo hôm nay ({today_str})", expanded=False):
-                    summary = df_today[['GIO', 'HE THONG', 'SIEU THI']].drop_duplicates(subset=['SIEU THI'])
-                    st.table(summary.sort_values(by='GIO', ascending=False))
 
         st.divider()
         df_f1 = df_master[df_master['NHAN VIEN'] == sel_nv]
@@ -84,6 +77,25 @@ if df_master is not None:
         with c2:
             list_st = sorted(df_f2['SIEU THI'].dropna().unique().tolist())
             sel_st = st.selectbox("3. Siêu thị", options=list_st)
+
+        # --- LOGIC NHẮC LỊCH VIẾNG THĂM & DI TÍCH LỊCH SỬ ---
+        if sel_st != "Chọn siêu thị...":
+            history_st = pd.DataFrame()
+            if not df_history.empty:
+                history_st = df_history[(df_history['NHAN VIEN'] == sel_nv) & (df_history['SIEU THI'] == sel_st)]
+            
+            if not history_st.empty:
+                last_visit = history_st['NGAY_DT'].max()
+                if pd.notnull(last_visit):
+                    days_ago = (datetime.now(tz).replace(tzinfo=None) - last_visit).days
+                    if days_ago == 0:
+                        st.info(f"📍 **Hôm nay** bạn đã ghé thăm điểm này rồi.")
+                    else:
+                        st.warning(f"🕒 Ghé lần cuối: **{last_visit.strftime('%d/%m/%Y')}** (Cách đây **{days_ago} ngày**)")
+                else:
+                    st.success("✨ Wow, chúc mừng bạn đã khám phá ra 1 di tích lịch sử!")
+            else:
+                st.success("✨ Wow, chúc mừng bạn đã khám phá ra 1 di tích lịch sử!")
 
         # --- LOGIC CHẶN ---
         so_lan_di = 0
@@ -105,15 +117,15 @@ if df_master is not None:
                     can_submit_time = False
                     waiting_seconds = int(120 - diff)
 
-        # Thông báo
+        # Thông báo chặn
         if is_after_work_hours: st.error("🌙 Đã qua 17:10. Hệ thống nghỉ.")
         elif is_blocked_by_date: st.error("🚫 Sau ngày 21 chỉ nhận hàng Ưu tiên.")
-        elif is_blocked_by_limit: st.error(f"🚫 Điểm này đã hết lượt (tối đa 2 lần).")
-        elif not can_submit_time: st.warning(f"⏳ Chờ {waiting_seconds}s.")
+        elif is_blocked_by_limit: st.error(f"🚫 Điểm này đã hết lượt tháng này (đã đi {so_lan_di} lần).")
+        elif not can_submit_time: st.warning(f"⏳ Vui lòng chờ {waiting_seconds}s giữa 2 lần gửi.")
         
         submit_ready = (not is_after_work_hours) and (not is_blocked_by_date) and (not is_blocked_by_limit) and can_submit_time
 
-        # --- FORM NHẬP LIỆU ---
+        # --- FORM NHẬP LIỆU (NHẬP SỐ TRỰC TIẾP) ---
         ht_up = sel_ht.upper()
         if ht_up in ["SH", "CTY", "BHX"]: list_sp = ["Sa Xi Lon"]
         elif ht_up in ["B'SMART", "GS25"]: list_sp = ["Sa Xi Lon", "Sa Xi Zero Lon", "Xi Pet 390"]
@@ -121,14 +133,14 @@ if df_master is not None:
         else: list_sp = ["Sa Xi Lon", "Sa Xi Zero Lon", "Xi Pet 390", "Xi Pet 1.5L", "Soda Kem Lon", "Suoi 500mL", "Soda Lon"]
 
         with st.form("form_bao_cao", clear_on_submit=True):
-            st.write("**Nhập số liệu trực tiếp**")
+            st.write("**Nhập số liệu (T = Thùng | L = Lon)**")
             data_inputs = {}
             for sp in list_sp:
                 c_name, c_f, c_t, c_l = st.columns([2, 1, 1, 1])
                 c_name.write(f"✅ {sp}")
                 f_val = c_f.number_input("Facing", min_value=0, step=1, key=f"f_{sp}")
-                t_val = c_t.number_input("Thùng", min_value=0, step=1, key=f"t_{sp}")
-                l_val = c_l.number_input("Lon", min_value=0, max_value=23, step=1, key=f"l_{sp}")
+                t_val = c_t.number_input("T", min_value=0, step=1, key=f"t_{sp}")
+                l_val = c_l.number_input("L", min_value=0, max_value=23, step=1, key=f"l_{sp}")
                 
                 tong_lon = (t_val * 24) + l_val
                 data_inputs[sp] = {"fc": f_val, "tk": tong_lon}
@@ -148,7 +160,7 @@ if df_master is not None:
                 } for sp, v in data_inputs.items() if v['fc'] > 0 or v['tk'] > 0]
                 
                 if rows_to_add and safe_append_to_sheets(rows_to_add):
-                    st.success("✅ Thành công!")
+                    st.success("✅ Gửi thành công!")
                     st.rerun()
 
         # --- TIẾN ĐỘ MỤC TIÊU THÁNG ---
@@ -161,18 +173,21 @@ if df_master is not None:
                 list_visited = df_history[(df_history['NGAY_DT'].dt.month == now.month) & (df_history['NHAN VIEN'] == sel_nv) & (df_history['HE THONG'].isin(UU_TIEN_LIST))]['SIEU THI'].unique().tolist()
             
             con_lai = [s for s in list_target if s not in list_visited]
-            st.subheader(f"📊 Tiến độ mục tiêu tháng {now.month}")
+            st.subheader(f"📊 Mục tiêu tháng {now.month}")
             progress_val = len(list_visited)/len(list_target) if list_target else 0
             st.progress(progress_val)
             
             c1, c2, c3 = st.columns(3)
             c1.metric("Tổng điểm UT", f"{len(list_target)}")
             c2.metric("Đã viếng", f"{len(list_visited)}")
-            c3.metric("Còn lại", f"{len(con_lai)}", delta=f"-{len(con_lai)}", delta_color="inverse")
+            c3.metric("Còn nợ", f"{len(con_lai)}", delta_color="inverse")
 
             if con_lai:
-                with st.expander(f"📍 Danh sách {len(con_lai)} điểm chưa đi", expanded=True):
+                with st.expander(f"📍 Danh sách {len(con_lai)} điểm cần đi", expanded=True):
                     for i, item in enumerate(con_lai, 1):
                         st.write(f"{i}. {item}")
-            else: st.balloons(); st.success("🌟 Hoàn thành mục tiêu!")
-        except: st.caption("Đang cập nhật tiến độ...")
+            else: 
+                st.balloons()
+                st.success("🌟 Xuất sắc! Bạn đã hoàn thành 100% mục tiêu.")
+        except:
+            st.caption("Đang tính toán tiến độ...")
