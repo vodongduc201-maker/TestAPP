@@ -133,7 +133,7 @@ if df_master is not None:
         else: list_sp = ["Sa Xi Lon", "Sa Xi Zero Lon", "Xi Pet 390", "Xi Pet 1.5L", "Soda Kem Lon", "Suoi 500mL", "Soda Lon"]
 
         with st.form("form_bao_cao", clear_on_submit=True):
-            st.write("**Nhập số liệu (T = Thùng | L = Lon)**")
+            st.write("**Nhập số liệu (Thùng = Thùng | Lon = Lon)**")
             data_inputs = {}
             for sp in list_sp:
                 c_name, c_f, c_t, c_l = st.columns([2, 1, 1, 1])
