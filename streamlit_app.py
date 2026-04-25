@@ -37,7 +37,7 @@ def safe_append_to_sheets(rows_list):
 
 UU_TIEN_LIST = ['CM', 'SF', 'CF', 'MM', 'GO!', 'emart', 'CTY', 'SM', 'XTRA']
 
-@st.cache_data(ttl=0)
+@st.cache_data(ttl=90)
 def load_master():
     try:
         df = pd.read_excel("data nhan vien.xlsx", header=None)
@@ -60,7 +60,6 @@ if df_master is not None:
 
     if sel_nv != "Chọn nhân viên...":
         try:
-            # Đọc lịch sử để kiểm tra chặn và nhắc lịch
             df_history = conn.read(worksheet="Data_Bao_Cao_MT", ttl=0)
             if not df_history.empty:
                 df_history['NGAY_DT'] = pd.to_datetime(df_history['NGAY'], format='%d/%m/%Y', errors='coerce')
@@ -78,7 +77,7 @@ if df_master is not None:
             list_st = sorted(df_f2['SIEU THI'].dropna().unique().tolist())
             sel_st = st.selectbox("3. Siêu thị", options=list_st)
 
-        # --- LOGIC NHẮC LỊCH VIẾNG THĂM & DI TÍCH LỊCH SỬ ---
+        # --- LOGIC NHẮC LỊCH ---
         if sel_st != "Chọn siêu thị...":
             history_st = pd.DataFrame()
             if not df_history.empty:
@@ -117,7 +116,6 @@ if df_master is not None:
                     can_submit_time = False
                     waiting_seconds = int(120 - diff)
 
-        # Thông báo chặn
         if is_after_work_hours: st.error("🌙 Đã qua 17:10. Hệ thống nghỉ.")
         elif is_blocked_by_date: st.error("🚫 Sau ngày 21 chỉ nhận hàng Ưu tiên.")
         elif is_blocked_by_limit: st.error(f"🚫 Điểm này đã hết lượt tháng này (đã đi {so_lan_di} lần).")
@@ -125,7 +123,7 @@ if df_master is not None:
         
         submit_ready = (not is_after_work_hours) and (not is_blocked_by_date) and (not is_blocked_by_limit) and can_submit_time
 
-        # --- FORM NHẬP LIỆU (NHẬP SỐ TRỰC TIẾP) ---
+        # --- FORM NHẬP LIỆU (DIỄN GIẢI THÙNG & LẺ) ---
         ht_up = sel_ht.upper()
         if ht_up in ["SH", "CTY", "BHX"]: list_sp = ["Sa Xi Lon"]
         elif ht_up in ["B'SMART", "GS25"]: list_sp = ["Sa Xi Lon", "Sa Xi Zero Lon", "Xi Pet 390"]
@@ -133,20 +131,22 @@ if df_master is not None:
         else: list_sp = ["Sa Xi Lon", "Sa Xi Zero Lon", "Xi Pet 390", "Xi Pet 1.5L", "Soda Kem Lon", "Suoi 500mL", "Soda Lon"]
 
         with st.form("form_bao_cao", clear_on_submit=True):
-            st.write("**Nhập số liệu (Thùng = Thùng | Lon = Lon)**")
+            st.write("**Nhập số liệu trực tiếp**")
             data_inputs = {}
             for sp in list_sp:
-                c_name, c_f, c_t, c_l = st.columns([2, 1, 1, 1])
-                c_name.write(f"✅ {sp}")
+                # Tăng tỷ lệ cột để chữ "Thùng" và "Lẻ" không bị khuất
+                c_name, c_f, c_t, c_l = st.columns([2.5, 1.2, 1.2, 1.2])
+                c_name.write(f"✅ **{sp}**")
                 f_val = c_f.number_input("Facing", min_value=0, step=1, key=f"f_{sp}")
-                t_val = c_t.number_input("T", min_value=0, step=1, key=f"t_{sp}")
-                l_val = c_l.number_input("L", min_value=0, max_value=23, step=1, key=f"l_{sp}")
+                t_val = c_t.number_input("Thùng", min_value=0, step=1, key=f"t_{sp}")
+                l_val = c_l.number_input("Lẻ (lon)", min_value=0, max_value=23, step=1, key=f"l_{sp}")
                 
                 tong_lon = (t_val * 24) + l_val
                 data_inputs[sp] = {"fc": f_val, "tk": tong_lon}
                 if t_val > 0 or l_val > 0:
-                    st.caption(f"➡️ Quy đổi: **{tong_lon} lon**")
+                    st.caption(f"➡️ Tổng tồn: **{tong_lon} lon**")
 
+            st.divider()
             hinh_anh = st.text_input("🔗 Link hình ảnh")
             ghi_chu = st.text_area("💬 Ghi chú")
 
@@ -163,7 +163,7 @@ if df_master is not None:
                     st.success("✅ Gửi thành công!")
                     st.rerun()
 
-        # --- TIẾN ĐỘ MỤC TIÊU THÁNG ---
+        # --- TIẾN ĐỘ MỤC TIÊU ---
         st.divider()
         try:
             df_target_all = df_master[(df_master['NHAN VIEN'] == sel_nv) & (df_master['HE THONG'].isin(UU_TIEN_LIST))]
@@ -188,6 +188,6 @@ if df_master is not None:
                         st.write(f"{i}. {item}")
             else: 
                 st.balloons()
-                st.success("🌟 Xuất sắc! Bạn đã hoàn thành 100% mục tiêu.")
+                st.success("🌟 Xuất sắc! Đã hoàn thành 100% mục tiêu.")
         except:
             st.caption("Đang tính toán tiến độ...")
