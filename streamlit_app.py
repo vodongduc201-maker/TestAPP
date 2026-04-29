@@ -38,7 +38,7 @@ def safe_append_to_sheets(rows_list):
 # Danh sách hệ thống ưu tiên
 UU_TIEN_LIST = ['CM', 'SF', 'CF', 'MM', 'GO!', 'emart', 'CTY', 'SM', 'XTRA']
 
-@st.cache_data(ttl=0)
+@st.cache_data(ttl=90)
 def load_master():
     try:
         df = pd.read_excel("data nhan vien.xlsx", header=None)
@@ -116,10 +116,10 @@ if df_master is not None:
                     can_submit_time, waiting_seconds = False, int(120 - diff)
 
         # Hiển thị lỗi theo thứ tự ưu tiên
-        if is_after_work_hours: st.error("🌙 Đã qua 17:10. Hệ thống nghỉ.")
-        elif is_blocked_by_date: st.error("🚫 Sau ngày 21 chỉ nhận hàng Ưu tiên.")
-        elif is_blocked_by_limit: st.error(f"🚫 Điểm này đã đi {so_lan_di} lần/tháng. Hàng lẻ tối đa 2 lần.")
-        elif not can_submit_time: st.warning(f"⏳ Vui lòng chờ {waiting_seconds}s.")
+        if is_after_work_hours: st.error("🌙 Đã qua 17:10. Hệ thống đi nghỉ rồi. Bái bai.")
+        elif is_blocked_by_date: st.error("🚫 Sau ngày 21 tập trung lấy đơn hàng nào các bạn.")
+        elif is_blocked_by_limit: st.error(f"🚫 Điểm này đã đi {so_lan_di} lần/tháng. Chỉ tối đa 2 lần cho điểm này thôi nhen.")
+        elif not can_submit_time: st.warning(f"⏳ Wow wow, nghỉ xíu, app cũng là con người mà.Vui lòng chờ {waiting_seconds}s.")
         
         submit_ready = (not is_after_work_hours) and (not is_blocked_by_date) and (not is_blocked_by_limit) and can_submit_time
 
