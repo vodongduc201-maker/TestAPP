@@ -125,7 +125,7 @@ if df_master is not None:
         
         submit_ready = (not is_after_work_hours) and (not is_blocked_by_date) and (not is_blocked_by_limit) and can_submit_time
 
-        # --- [V4026] LOGIC SẢN PHẨM THEO HỆ THỐNG ---
+        # --- [V4026] LOGIC SẢN PHẨM ---
         if ht_up == "CTY":
             list_sp = []
             st.info("🏢 Chế độ check-in Công ty: Chỉ nhập Ghi chú & Hình ảnh.")
@@ -139,12 +139,15 @@ if df_master is not None:
             if list_sp:
                 st.write("**Nhập số liệu trực tiếp**")
                 for sp in list_sp:
-                    c_name, c_f, c_t, c_l = st.columns([2.5, 1.2, 1.2, 1.2])
+                    # Cập nhật hiển thị đầy đủ tiêu đề
+                    c_name, c_f, c_t, c_l = st.columns([2.2, 1.3, 1.3, 1.3])
                     c_name.write(f"✅ **{sp}**")
-                    f_val = c_f.number_input("F", min_value=0, step=1, key=f"f_{sp}")
-                    t_val = c_t.number_input("T", min_value=0, step=1, key=f"t_{sp}")
+                    f_val = c_f.number_input("Facing", min_value=0, step=1, key=f"f_{sp}")
+                    t_val = c_t.number_input("Thùng", min_value=0, step=1, key=f"t_{sp}")
+                    
                     quy_cach = 12 if "1.5L" in sp else 24
-                    l_val = c_l.number_input(f"L", min_value=0, max_value=quy_cach-1, step=1, key=f"l_{sp}")
+                    le_max = quy_cach - 1
+                    l_val = c_l.number_input("Lon/Chai", min_value=0, max_value=le_max, step=1, key=f"l_{sp}")
                     
                     tong_don_vi = (t_val * quy_cach) + l_val
                     data_inputs[sp] = {"fc": f_val, "tk": tong_don_vi}
