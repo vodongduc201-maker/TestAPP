@@ -80,12 +80,9 @@ if df_master is not None:
 
         ht_up = sel_ht.upper()
 
-        # --- [V4026] NHẮC LỊCH (CHỈ HIỆN KHI KHÔNG PHẢI CTY) ---
+        # --- [V4026] NHẮC LỊCH (ẨN KHI LÀ CTY) ---
         if sel_st != "Chọn siêu thị..." and ht_up != "CTY":
-            history_st = pd.DataFrame()
-            if not df_history.empty:
-                history_st = df_history[(df_history['NHAN VIEN'] == sel_nv) & (df_history['SIEU THI'] == sel_st)]
-            
+            history_st = df_history[(df_history['NHAN VIEN'] == sel_nv) & (df_history['SIEU THI'] == sel_st)] if not df_history.empty else pd.DataFrame()
             if not history_st.empty:
                 last_visit = history_st['NGAY_DT'].max()
                 if pd.notnull(last_visit):
@@ -118,9 +115,10 @@ if df_master is not None:
                 if diff < 120:
                     can_submit_time, waiting_seconds = False, int(120 - diff)
 
+        # Hiển thị lỗi theo thứ tự ưu tiên
         if is_after_work_hours: st.error("🌙 Đã qua 17:10. Hệ thống nghỉ.")
-        elif is_blocked_by_date: st.error("🚫 Sau ngày 21 chỉ nhận hàng Ưu tiên.")
-        elif is_blocked_by_limit: st.error(f"🚫 Điểm này đã đi {so_lan_di} lần/tháng.")
+        elif is_blocked_by_date: st.error("🚫 Sau ngày 21 tập trung đi lấy đơn hàng.")
+        elif is_blocked_by_limit: st.error(f"🚫 Điểm này đã đi {so_lan_di} lần/tháng. Hàng lẻ tối đa 2 lần.")
         elif not can_submit_time: st.warning(f"⏳ Vui lòng chờ {waiting_seconds}s.")
         
         submit_ready = (not is_after_work_hours) and (not is_blocked_by_date) and (not is_blocked_by_limit) and can_submit_time
@@ -134,20 +132,17 @@ if df_master is not None:
         elif ht_up in ["EMART", "CS", "CM", "CF", "FL", "XTRA"]: list_sp = ["Sa Xi Lon", "Sa Xi Zero Lon", "Xi Pet 390", "Xi Pet 1.5L"]
         else: list_sp = ["Sa Xi Lon", "Sa Xi Zero Lon", "Xi Pet 390", "Xi Pet 1.5L", "Soda Kem Lon", "Suoi 500mL", "Soda Lon"]
 
-        with st.form("form_v4026", clear_on_submit=True):
+        with st.form("form_v4026_final", clear_on_submit=True):
             data_inputs = {}
             if list_sp:
                 st.write("**Nhập số liệu trực tiếp**")
                 for sp in list_sp:
-                    # Cập nhật hiển thị đầy đủ tiêu đề
                     c_name, c_f, c_t, c_l = st.columns([2.2, 1.3, 1.3, 1.3])
                     c_name.write(f"✅ **{sp}**")
                     f_val = c_f.number_input("Facing", min_value=0, step=1, key=f"f_{sp}")
                     t_val = c_t.number_input("Thùng", min_value=0, step=1, key=f"t_{sp}")
-                    
                     quy_cach = 12 if "1.5L" in sp else 24
-                    le_max = quy_cach - 1
-                    l_val = c_l.number_input("Lon/Chai", min_value=0, max_value=le_max, step=1, key=f"l_{sp}")
+                    l_val = c_l.number_input("Lon/Chai", min_value=0, max_value=quy_cach-1, step=1, key=f"l_{sp}")
                     
                     tong_don_vi = (t_val * quy_cach) + l_val
                     data_inputs[sp] = {"fc": f_val, "tk": tong_don_vi}
