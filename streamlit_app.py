@@ -117,7 +117,7 @@ if df_master is not None:
 
         # Hiển thị lỗi theo thứ tự ưu tiên
         if is_after_work_hours: st.error("🌙 Đã qua 17:10. Hệ thống nghỉ.")
-        elif is_blocked_by_date: st.error("🚫 Sau ngày 21 tập trung đi lấy đơn hàng.")
+        elif is_blocked_by_date: st.error("🚫 Sau ngày 21 chỉ nhận hàng Ưu tiên.")
         elif is_blocked_by_limit: st.error(f"🚫 Điểm này đã đi {so_lan_di} lần/tháng. Hàng lẻ tối đa 2 lần.")
         elif not can_submit_time: st.warning(f"⏳ Vui lòng chờ {waiting_seconds}s.")
         
