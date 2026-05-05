@@ -9,47 +9,62 @@ from google.oauth2.service_account import Credentials
 # --- 1. CẤU HÌNH TRANG ---
 st.set_page_config(page_title="Báo Cáo MT Chương Dương - v4026", page_icon="🥤", layout="centered")
 
-# --- 2. CSS THÔNG MINH (TỰ ĐỔI MÀU THEO THEME) ---
+# --- 2. CSS THÔNG MINH (BOXED UI) ---
 st.markdown("""
     <style>
-    /* Sử dụng biến hệ thống để tự thích nghi Light/Dark Mode */
+    /* Tổng thể khung bao ngoài cho từng section */
+    .stSelectbox, .stNumberInput, .stTextArea, .stTextInput {
+        background-color: var(--secondary-bg-color);
+        padding: 10px;
+        border-radius: 12px;
+        border: 1px solid rgba(128, 128, 128, 0.2);
+        margin-bottom: 5px;
+    }
+    
+    /* Đóng khung từng sản phẩm */
+    .product-box {
+        border: 1px solid var(--secondary-bg-color);
+        background-color: var(--background-color);
+        padding: 12px;
+        border-radius: 15px;
+        margin-bottom: 15px;
+        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
     .product-header {
-        background-color: var(--secondary-bg-color); /* Tự đổi theo nền hệ thống */
-        color: var(--text-color); /* Tự đổi màu chữ */
-        padding: 8px 12px;
+        background-color: var(--secondary-bg-color);
+        color: var(--text-color);
+        padding: 6px 12px;
         border-radius: 8px;
         border-left: 5px solid #ff4b4b;
         font-weight: bold;
-        margin-top: 15px;
-        margin-bottom: 5px;
         font-size: 14px;
-        box-shadow: 0px 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    /* Thu nhỏ khoảng cách giữa các hàng input */
-    [data-testid="column"] {
-        padding: 0px 5px !important;
+        margin-bottom: 10px;
     }
 
-    /* Tùy chỉnh nút bấm để luôn nổi bật */
+    /* Tối ưu cột cho mobile */
+    [data-testid="column"] {
+        padding: 0px 2px !important;
+    }
+
+    /* Nút bấm lớn */
     .stButton button {
         width: 100%;
-        height: 52px;
+        height: 55px;
         background-color: #ff4b4b !important;
         color: white !important;
         font-weight: bold;
-        border-radius: 12px;
+        border-radius: 15px;
         border: none;
+        box-shadow: 0px 4px 15px rgba(255, 75, 75, 0.4);
         margin-top: 20px;
-        box-shadow: 0px 4px 10px rgba(255, 75, 75, 0.3);
     }
     
-    /* Làm caption ( Facing, Thùng, Lẻ) rõ hơn ở Dark Mode */
+    /* Chỉnh caption nhỏ lại cho tinh tế */
     .stCaption {
-        color: var(--text-color);
-        opacity: 0.8;
-        font-size: 11px !important;
         text-align: center;
+        font-size: 10px !important;
+        margin-top: -5px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -93,7 +108,7 @@ st.title("🥤 Báo Cáo MT Chương Dương")
 
 if df_master is not None:
     list_nv = ["Chọn nhân viên..."] + sorted(df_master['NHAN VIEN'].unique().tolist())
-    sel_nv = st.selectbox("👤 1. Nhân viên", options=list_nv)
+    sel_nv = st.selectbox("👤 Bước 1: Nhân viên", options=list_nv)
 
     if sel_nv != "Chọn nhân viên...":
         try:
@@ -106,9 +121,9 @@ if df_master is not None:
         df_f1 = df_master[df_master['NHAN VIEN'] == sel_nv]
         c1, c2 = st.columns(2)
         with c1:
-            sel_ht = st.selectbox("2. Hệ thống", options=sorted(df_f1['HE THONG'].unique().tolist()))
+            sel_ht = st.selectbox("🏢 Hệ thống", options=sorted(df_f1['HE THONG'].unique().tolist()))
         with c2:
-            sel_st = st.selectbox("3. Siêu thị", options=sorted(df_f1[df_f1['HE THONG'] == sel_ht]['SIEU THI'].unique().tolist()))
+            sel_st = st.selectbox("📍 Siêu thị", options=sorted(df_f1[df_f1['HE THONG'] == sel_ht]['SIEU THI'].unique().tolist()))
 
         ht_up = sel_ht.upper()
         user_today = df_history[(df_history['NHAN VIEN'] == sel_nv) & (df_history['NGAY'] == today_str)] if not df_history.empty else pd.DataFrame()
@@ -119,7 +134,7 @@ if df_master is not None:
                 log_v = user_today[['GIO', 'SIEU THI']].sort_values(by='GIO', ascending=False).drop_duplicates(subset=['SIEU THI'])
                 st.table(log_v)
 
-        # Nhắc lịch & Logic chặn
+        # Nhắc lịch
         if sel_st and ht_up != "CTY":
             history_st = df_history[(df_history['NHAN VIEN'] == sel_nv) & (df_history['SIEU THI'] == sel_st)] if not df_history.empty else pd.DataFrame()
             so_lan_thang = history_st[history_st['NGAY_DT'].dt.month == now.month]['NGAY'].nunique()
@@ -128,7 +143,7 @@ if df_master is not None:
             if pd.notnull(last_visit):
                 st.info(f"🕒 Ghé lần cuối: {last_visit.strftime('%d/%m/%Y')} ({so_lan_thang} lần/tháng)")
                 if ht_up not in UU_TIEN_LIST and so_lan_thang == 1:
-                    st.warning("⚠️ ĐÂY LÀ LẦN CUỐI CỦA THÁNG!")
+                    st.warning("⚠️ LƯU Ý: Đây là lần cuối của tháng!")
             else: st.success("✨ Điểm mới hoàn toàn!")
 
         # Logic chặn
@@ -146,11 +161,12 @@ if df_master is not None:
         elif ht_up in ["B'SMART", "GS25"]: list_sp = ["Sa Xi Lon", "Sa Xi Zero Lon", "Xi Pet 390"]
         else: list_sp = ["Sa Xi Lon", "Sa Xi Zero Lon", "Xi Pet 390", "Xi Pet 1.5L", "Soda Kem Lon", "Suoi 500mL", "Soda Lon"]
 
-        # Form nhập liệu Compact
-        with st.form("compact_form", clear_on_submit=True):
+        # Form nhập liệu
+        with st.form("boxed_form", clear_on_submit=True):
             inputs = {}
             for sp in list_sp:
-                st.markdown(f'<div class="product-header">{sp}</div>', unsafe_allow_html=True)
+                # Mỗi sản phẩm nằm trong 1 cái box riêng
+                st.markdown(f'<div class="product-box"><div class="product-header">{sp}</div>', unsafe_allow_html=True)
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     f = st.number_input("Facing", 0, key=f"f_{sp}", label_visibility="collapsed")
@@ -162,8 +178,10 @@ if df_master is not None:
                     qc = 12 if "1.5L" in sp else 24
                     l = st.number_input("Lẻ", 0, qc-1, key=f"l_{sp}", label_visibility="collapsed")
                     st.caption("Lẻ")
+                st.markdown('</div>', unsafe_allow_html=True)
                 inputs[sp] = {"fc": f, "tk": (t * qc) + l}
             
+            st.write("---")
             img = st.text_input("🔗 Link hình ảnh")
             note = st.text_area("💬 Ghi chú")
 
@@ -178,18 +196,4 @@ if df_master is not None:
                 else:
                     rows = [{"NGAY": today_str, "GIO": now.strftime("%H:%M:%S"), "NHAN VIEN": sel_nv, "HE THONG": sel_ht, "PHUONG": p, "SIEU THI": sel_st, "SAN PHAM": s, "FACING": v['fc'], "TON KHO": v['tk'], "GHI CHU": note, "HINH ANH": img} for s, v in inputs.items() if v['fc'] > 0 or v['tk'] > 0]
                 if rows and safe_append_to_sheets(rows):
-                    st.success("✅ Đã gửi!"); st.rerun()
-
-        # Tiến độ (chỉ hiện nếu có target)
-        try:
-            df_ut = df_master[(df_master['NHAN VIEN'] == sel_nv) & (df_master['HE THONG'].isin(UU_TIEN_LIST))]
-            all_ut = df_ut['SIEU THI'].unique()
-            done_ut = df_history[(df_history['NGAY_DT'].dt.month == now.month) & (df_history['NHAN VIEN'] == sel_nv) & (df_history['HE THONG'].isin(UU_TIEN_LIST))]['SIEU THI'].unique()
-            debt = [s for s in all_ut if s not in done_ut]
-            if len(all_ut) > 0:
-                st.divider()
-                st.subheader(f"📊 Mục tiêu tháng {now.month}")
-                st.progress(len(done_ut)/len(all_ut))
-                c1, c2, c3 = st.columns(3)
-                c1.metric("Tổng", len(all_ut)); c2.metric("Xong", len(done_ut)); c3.metric("Nợ", len(debt))
-        except: pass
+                    st.success("✅ Thành công!"); st.rerun()
