@@ -9,48 +9,31 @@ from google.oauth2.service_account import Credentials
 # --- 1. CẤU HÌNH TRANG ---
 st.set_page_config(page_title="Báo Cáo MT Chương Dương - v4026", page_icon="🥤", layout="centered")
 
-# --- 2. CSS CUSTOM (BOXED UI & AUTO THEME) ---
+# --- 2. CSS BOXED UI & AUTO THEME ---
 st.markdown("""
     <style>
-    /* Bo góc và đổ bóng nhẹ cho các ô nhập liệu */
     .stSelectbox, .stNumberInput, .stTextArea, .stTextInput {
         background-color: var(--secondary-bg-color);
-        padding: 8px;
-        border-radius: 10px;
-        border: 1px solid rgba(128, 128, 128, 0.1);
+        padding: 8px; border-radius: 10px; border: 1px solid rgba(128, 128, 128, 0.1);
     }
-    /* Khung bao quanh từng sản phẩm */
     .product-box {
         border: 1px solid rgba(128, 128, 128, 0.2);
-        padding: 12px;
-        border-radius: 15px;
-        margin-bottom: 12px;
+        padding: 12px; border-radius: 15px; margin-bottom: 12px;
         background-color: var(--background-color);
-        box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.05);
     }
-    /* Tiêu đề sản phẩm có vạch đỏ bên trái */
     .product-header {
-        background-color: var(--secondary-bg-color);
-        color: var(--text-color);
-        padding: 6px 12px;
-        border-radius: 8px;
-        border-left: 5px solid #ff4b4b;
-        font-weight: bold;
-        font-size: 14px;
-        margin-bottom: 10px;
+        background-color: var(--secondary-bg-color); color: var(--text-color);
+        padding: 6px 12px; border-radius: 8px; border-left: 5px solid #ff4b4b;
+        font-weight: bold; font-size: 14px; margin-bottom: 10px;
     }
-    /* Nút bấm lớn, nổi bật */
     .stButton button {
-        width: 100%;
-        height: 55px;
-        background-color: #ff4b4b !important;
-        color: white !important;
-        font-weight: bold;
-        border-radius: 15px;
-        box-shadow: 0px 4px 10px rgba(255, 75, 75, 0.3);
-        margin-top: 20px;
+        width: 100%; height: 55px; background-color: #ff4b4b !important;
+        color: white !important; font-weight: bold; border-radius: 15px;
+        box-shadow: 0px 4px 10px rgba(255, 75, 75, 0.3); margin-top: 20px;
     }
     .stCaption { text-align: center; font-size: 11px !important; margin-top: -5px; }
+    /* Style cho bảng xem lại */
+    .view-table { font-size: 12px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -69,10 +52,9 @@ def safe_append_to_sheets(rows_list):
         sheet.append_rows(rows_list)
         return True
     except Exception as e:
-        st.error(f"❌ Lỗi ghi dữ liệu: {e}")
+        st.error(f"❌ Lỗi: {e}")
         return False
 
-# --- 4. LOAD MASTER DATA ---
 @st.cache_data(ttl=600)
 def load_master():
     try:
@@ -90,6 +72,7 @@ if df_master is not None:
     sel_nv = st.selectbox("👤 1. Nhân viên", options=list_nv)
 
     if sel_nv != "Chọn nhân viên...":
+        # Tải lịch sử để dùng cho cả việc "Chặn" và "Xem lại"
         try:
             df_history = conn.read(worksheet="Data_Bao_Cao_MT", ttl=0)
             if not df_history.empty:
@@ -104,11 +87,11 @@ if df_master is not None:
         with c2:
             sel_st = st.selectbox("📍 Siêu thị", options=sorted(df_f1[df_f1['HE THONG'] == sel_ht]['SIEU THI'].unique().tolist()))
 
-        # --- 5. PHÂN LOẠI SẢN PHẨM THEO HỆ THỐNG (CẬP NHẬT CHUẨN) ---
+        # --- 4. PHÂN LOẠI SẢN PHẨM (GIỮ THEO BẢN GỐC CỦA ANH) ---
         ht_up = sel_ht.upper()
         if ht_up == "CTY":
             list_sp = []
-            st.info("🏢 Chế độ check-in Công ty: Chỉ nhập Ghi chú & Hình ảnh.")
+            st.info("🏢 Chế độ check-in Công ty.")
         elif ht_up in ["SH", "BHX"]: 
             list_sp = ["Sa Xi Lon"]
         elif ht_up in ["B'SMART", "GS25"]: 
@@ -125,7 +108,7 @@ if df_master is not None:
         is_blocked = (ht_up not in UU_TIEN and (so_lan_thang >= 2 or now.day > 21)) or \
                      (ht_up != 'CTY' and (now.hour * 60 + now.minute) >= (17 * 60 + 10))
 
-        # --- 6. FORM NHẬP LIỆU BOXED ---
+        # --- 5. FORM NHẬP LIỆU ---
         with st.form("main_form", clear_on_submit=True):
             inputs = {}
             for sp in list_sp:
@@ -147,10 +130,7 @@ if df_master is not None:
             img = st.text_input("🔗 Link hình ảnh")
             note = st.text_area("💬 Ghi chú")
 
-            btn_label = "🚀 GỬI BÁO CÁO"
-            if is_blocked: btn_label = "🚫 ĐÃ KHÓA BÁO CÁO"
-
-            if st.form_submit_button(btn_label, disabled=is_blocked):
+            if st.form_submit_button("🚀 GỬI BÁO CÁO", disabled=is_blocked):
                 p = df_f1[df_f1['SIEU THI'] == sel_st]['PHUONG'].values[0]
                 final_rows = []
                 if ht_up == "CTY":
@@ -161,4 +141,16 @@ if df_master is not None:
                             final_rows.append([today_str, now.strftime("%H:%M:%S"), sel_nv, sel_ht, p, sel_st, s, v['fc'], v['tk'], note, img])
                 
                 if final_rows and safe_append_to_sheets(final_rows):
-                    st.success("✅ Thành công!"); st.rerun()
+                    st.success("🎉 Đã gửi thành công!"); st.rerun()
+
+        # --- 6. PHẦN XEM LẠI BÁO CÁO TRONG NGÀY ---
+        st.divider()
+        st.subheader("📋 Xem lại báo cáo hôm nay")
+        user_today = df_history[(df_history['NHAN VIEN'] == sel_nv) & (df_history['NGAY'] == today_str)] if not df_history.empty else pd.DataFrame()
+        
+        if not user_today.empty:
+            # Chỉ hiển thị các cột quan trọng để xem cho nhanh
+            view_df = user_today[['GIO', 'SIEU THI', 'SAN PHAM', 'FACING', 'TON KHO']].sort_values(by='GIO', ascending=False)
+            st.dataframe(view_df, use_container_width=True, hide_index=True)
+        else:
+            st.write("✨ Bạn chưa gửi báo cáo nào trong hôm nay.")
